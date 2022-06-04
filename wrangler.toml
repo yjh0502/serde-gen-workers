@@ -1,0 +1,17 @@
+name = "rustgen"
+workers_dev = true
+compatibility_date = "2022-01-20"
+main = "build/worker/shim.mjs"
+
+[vars]
+WORKERS_RS_VERSION = "0.0.9"
+
+[build]
+command = "(cd frontend && npm run build) && cargo install -q worker-build && cargo clean && worker-build --release" # required
+
+[[rules]]
+globs = ["**/*.wasm"]
+type = "CompiledWasm"
+
+[dev]
+ip = "0.0.0.0"

@@ -1,0 +1,23 @@
+html {
+  color-scheme: light dark;
+}
+.App {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+
+  height: 100%;
+}
+
+.editor {
+  flex: 1;
+  width: 100%;
+  min-height: 100px;
+}
+
+
+.button-generate {
+  float: right;
+  margin: 1em;
+}
