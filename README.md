@@ -14,6 +14,6 @@ Generate `rust` serde bindings from JSON data. WIP.
  - `workers-rs` runtime does not seems to support static assets from kv store.
    It requires `__STATIC_CONTENT_MANIFEST` as well as `__STATIC_CONTENT`,
     as `wrangler` mangles resource path with content hash.
-   Unfortunately `__STATIC_CONTENT_MANIFEST` is not available on rust runtime, I embedded all static assets into `wasm` binary.
- - Maximum bundle size of CF worker is 1MiB. The app compiles down to 1.2MB, half wasm code and half static assets.
-    Fortunately it could be published because compressed size is under 1MB.
+   Unfortunately `__STATIC_CONTENT_MANIFEST` is not available on rust runtime, so I embedded all static assets into `wasm` binary.
+ - Maximum bundle size of CF worker is 1MiB. The app compiles down to 1.2MB, half wasm code and half static assets (html, css and js).
+    Fortunately it could be published to workers.dev as compressed size is under 1MB.
