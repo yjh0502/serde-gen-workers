@@ -43,6 +43,7 @@ class App extends React.Component {
 
     this.state = {
       tests: true,
+      ndjson: false,
 
       helpOpen: false,
     };
@@ -60,19 +61,11 @@ class App extends React.Component {
   }
 
   submit() {
-    const { tests } = this.state;
+    const { tests, ndjson } = this.state;
     const editor = getEditor(this.srcRef.current, 'json');
-    let str = editor.getValue();
-    try {
-      // test on browser
-      JSON.parse(str);
-    } catch(e) {
-      console.log(e);
-      this.editor_gen.setValue(`// failed to parse JSON: {e}`, -1);
-      return;
-    }
+    const host = '';
 
-    fetch(`/schema?tests=${tests}`, {
+    fetch(`${host}/?tests=${tests}&ndjson=${ndjson}`, {
       method: 'POST',
       body: editor.getValue(),
     }).then((resp) => resp.text())
@@ -93,12 +86,12 @@ class App extends React.Component {
   }
 
   render() {
-    const { tests, helpOpen } = this.state;
+    const { tests, ndjson, helpOpen } = this.state;
 
     const host = 'https://rustgen.jyu.workers.dev';
-    const example1 = `curl -XPOST -d '{"hello":"world"}' '${host}/schema'`;
-    const example2 = `curl -XPOST -d @input.json '${host}/schema' -o meta.json`;
-    const example3 = `curl -sf 'https://api.github.com/meta' \\\n | curl -XPOST -d @- '${host}/schema?tests'`;
+    const example1 = `curl -XPOST -d '{"hello":"world"}' '${host}/'`;
+    const example2 = `curl -XPOST -d @input.json '${host}/' -o meta.json`;
+    const example3 = `curl -sf 'https://api.github.com/meta' \\\n | curl -XPOST -d @- '${host}/?tests'`;
 
     return (
       <div className="App">
@@ -112,6 +105,11 @@ class App extends React.Component {
           onChange={(ev) => this.setState({tests: ev.target.checked})}
           checked={tests}/>
         <label className="label-inline">generate tests</label>
+
+        <input type="checkbox"
+          onChange={(ev) => this.setState({ndjson: ev.target.checked})}
+          checked={ndjson}/>
+        <label className="label-inline">ndjson</label>
       </div>
 
       <span>

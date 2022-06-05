@@ -2,12 +2,18 @@
 
 Generate `rust` serde bindings from JSON data. WIP.
 
+## Features
+
+ - parse JSON, generate rust structs from it
+ - generate testcases
+ - handle ndjson
+
 ## TODO
 
- - Handle ndjson: `serde-gen` already supports it
- - Improve error handling, especially with invalid JSON input. It seems returning Err(_) crashes workers runtime :(
  - Improve build process. `include_dir!` fails to build incrementally, so `cargo clean` is required before publishing, which hurts iteration time.
  - Allow sharing with `gist.github.com`. Allow to load generated code on `play.rust-lang.org`.
+ - ~~Handle ndjson: `serde-gen` already supports it~~
+ - ~~Improve error handling, especially with invalid JSON input. It seems returning Err(_) crashes workers runtime :(~~
 
 ## Notes
 

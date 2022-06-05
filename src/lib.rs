@@ -16,11 +16,28 @@ fn log_request(req: &Request) {
     );
 }
 
-async fn handle_schema(mut req: Request, _ctx: RouteContext<()>) -> Result<Response> {
+async fn handle_schema(req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let mut headers = Headers::new();
+    headers.set("content-type", "text/plain")?;
+    headers.set("Access-Control-Allow-Origin", "*")?;
+
+    let resp = match handle_schema_inner(req, ctx).await {
+        Ok(res) => Ok(res),
+        Err(_e) => {
+            // CF workers cannot handle Err(_) case gracefully,
+            Response::ok(format!("// failed to handle request: {:?}", _e))
+        }
+    };
+
+    resp.map(|r| r.with_headers(headers))
+}
+
+async fn handle_schema_inner(mut req: Request, _ctx: RouteContext<()>) -> Result<Response> {
     let url = req.url()?;
 
     let mut root_name = std::borrow::Cow::Borrowed("Root");
     let mut tests = false;
+    let mut ndjson = false;
 
     for (k, v) in url.query_pairs() {
         if k == "root" {
@@ -29,18 +46,26 @@ async fn handle_schema(mut req: Request, _ctx: RouteContext<()>) -> Result<Respo
         if k == "tests" {
             tests = v == "true" || v == "";
         }
+        if k == "ndjson" {
+            ndjson = v == "true" || v == "";
+        }
     }
 
     let data = req.text().await?;
     let mut ty: Ty = Ty::Unit;
-    ty = ty + serde_json::from_str(&data)?;
+
+    if !ndjson {
+        ty = ty + serde_json::from_str(&data)?;
+    } else {
+        for line in data.lines() {
+            ty = ty + serde_json::from_str(&line)?;
+        }
+    }
 
     let mut builder = TyBuilder::new();
     let mut out = builder.build(root_name.as_ref(), ty);
 
     if tests {
-        let parsed: serde_json::Value = serde_json::from_str(&data)?;
-        let input_str = serde_json::to_string_pretty(&parsed)?;
         use std::fmt::Write;
 
         let test_runner = serde_gen::TyBuilder::build_test_runner("test_runner")
@@ -54,29 +79,47 @@ async fn handle_schema(mut req: Request, _ctx: RouteContext<()>) -> Result<Respo
 #[cfg(test)]
 mod tests {{
     use super::{0:};
-{4:}
+{1:}
+"#,
+            root_name.as_ref(),
+            test_runner
+        )
+        .ok();
 
+        if !ndjson {
+            gen_testcase_str(&mut out, "testcase", root_name.as_ref(), &data)?;
+        } else {
+            for (i, line) in data.lines().enumerate() {
+                let tc_name = format!("testcase_{}", i);
+                gen_testcase_str(&mut out, &tc_name, root_name.as_ref(), line)?;
+            }
+        }
+
+        write!(&mut out, r#"}}"#,).ok();
+    }
+
+    Response::ok(out)
+}
+
+fn gen_testcase_str(out: &mut String, tc_name: &str, root_name: &str, data: &str) -> Result<()> {
+    let parsed: serde_json::Value = serde_json::from_str(&data)?;
+    let input_str = serde_json::to_string_pretty(&parsed)?;
+    use std::fmt::Write;
+
+    write!(
+        out,
+        r#"
     #[test]
-    fn test() {{
+    fn {4:}() {{
         const INPUT: &'static str = {2:}{1:}{3:};
         test_runner::< {0:} >(INPUT);
     }}
-}}
 "#,
-            root_name.as_ref(),
-            input_str,
-            "r#\"",
-            "\"#",
-            test_runner,
-        )
-        .ok();
-    }
+        root_name, input_str, "r#\"", "\"#", tc_name
+    )
+    .ok();
 
-    let mut headers = Headers::new();
-    headers.set("content-type", "text/plain")?;
-    headers.set("Access-Control-Allow-Origin", "*")?;
-
-    Response::ok(out).map(|r| r.with_headers(headers))
+    Ok(())
 }
 
 async fn get_kv(path: &str, _ctx: &RouteContext<()>) -> Option<&'static str> {
@@ -130,6 +173,7 @@ pub async fn main(req: Request, env: Env, _ctx: worker::Context) -> Result<Respo
                 _ => Response::error("Not Found", 404),
             }
         })
+        .post_async("/", handle_schema)
         .post_async("/schema", handle_schema)
         .get("/worker-version", |_, ctx| {
             let version = ctx.var("WORKERS_RS_VERSION")?.to_string();
